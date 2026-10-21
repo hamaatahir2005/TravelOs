@@ -23,7 +23,11 @@ test('desktop workflow: customer, ticket, invoice, visa, private document, expen
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await login(page);
-  await page.screenshot({ path: 'artifacts/dashboard-desktop.png', fullPage: true });
+  await page.screenshot({
+    path: 'artifacts/dashboard-desktop.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
   const unique = Date.now();
   const name = `Demo Browser ${unique}`;
   await page.goto('/customers');
@@ -131,16 +135,24 @@ test('mobile layouts, Sorani RTL, Arabic RTL and dark theme', async ({ page }) =
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await page.screenshot({ path: `artifacts/dashboard-${label}.png`, fullPage: true });
+    await page.screenshot({
+      path: `artifacts/dashboard-${label}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
   }
   await page.getByLabel('Language', { exact: true }).selectOption('ckb');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await page.getByRole('button', { name: 'Open navigation' }).click();
   await expect(page.getByRole('link', { name: 'بلیتی فڕۆکە' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close navigation' }).click();
+  await page.getByRole('button', { name: 'Close navigation menu', exact: true }).click();
   await page.getByRole('button', { name: 'Dark mode', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
-  await page.screenshot({ path: 'artifacts/dashboard-sorani-dark.png', fullPage: true });
+  await page.screenshot({
+    path: 'artifacts/dashboard-sorani-dark.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');

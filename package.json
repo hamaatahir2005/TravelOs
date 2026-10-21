@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "prisma generate && next build --webpack && node scripts/package.mjs",
-    "start": "node --env-file-if-exists=.env .next/standalone/server.js",
+    "start": "node --env-file-if-exists=.env scripts/start.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",

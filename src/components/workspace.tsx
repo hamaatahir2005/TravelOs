@@ -221,6 +221,13 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
           onClick={() => setMobile(false)}
         />
         <aside className={`sidebar ${mobile ? 'is-open' : ''}`}>
+          <button
+            className="sidebar-close"
+            aria-label="Close navigation menu"
+            onClick={() => setMobile(false)}
+          >
+            <X size={18} />
+          </button>
           <Link href="/dashboard" className="brand">
             <span className="brand-icon">
               <Plane size={23} />

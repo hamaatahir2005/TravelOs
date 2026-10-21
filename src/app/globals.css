@@ -2433,3 +2433,31 @@ tr:nth-child(3n) .table-avatar {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.panel,
+.main-wrap,
+.dashboard-side,
+.dashboard-mid,
+.dashboard-bottom {
+  min-width: 0;
+}
+@media (max-width: 960px) {
+  .dashboard-mid,
+  .dashboard-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sidebar-close {
+  display: none;
+  position: absolute;
+  inset-inline-end: 15px;
+  top: 35px;
+  border: 0;
+  background: none;
+  color: #97a5bb;
+  padding: 5px;
+}
+@media (max-width: 760px) {
+  .sidebar-close {
+    display: inline-flex;
+  }
+}

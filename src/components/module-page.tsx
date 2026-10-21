@@ -563,6 +563,24 @@ function RecordTable({
           </span>
         ),
       },
+      {
+        key: 'paymentStatus',
+        label: 'Payment',
+        render: (r) => {
+          const invoice = data.invoices.find((i) => i.ticketId === r.id);
+          return invoice ? (
+            <Status
+              value={
+                Number(invoice.total) - invoice.refunded - invoice.paid <= 0
+                  ? 'paid'
+                  : invoice.paid > 0
+                    ? 'partial'
+                    : 'unpaid'
+              }
+            />
+          ) : null;
+        },
+      },
       { key: 'status', label: 'Status', render: (r) => <Status value={String(r.status)} /> },
     ],
     visas: [
@@ -751,7 +769,10 @@ function RecordTable({
   };
   const filtered = rows.filter(
     (r) =>
-      (!query || JSON.stringify(r).toLowerCase().includes(query.toLowerCase())) &&
+      (!query ||
+        `${JSON.stringify(r)} ${lookup('customers', r.customerId)} ${lookup('suppliers', r.supplierId)}`
+          .toLowerCase()
+          .includes(query.toLowerCase())) &&
       (status === 'all' || String(r.status ?? r.direction).toLowerCase() === status.toLowerCase()),
   );
   const pageCount = Math.max(1, Math.ceil(filtered.length / 10));
