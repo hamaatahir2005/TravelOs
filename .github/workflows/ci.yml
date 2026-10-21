@@ -1,0 +1,35 @@
+name: Travel OS checks
+on: [push, pull_request]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: travelos
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: travel_os_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U travelos -d travel_os_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://travelos:test-only-password@localhost:5432/travel_os_test
+      TEST_DATABASE_URL: postgresql://travelos:test-only-password@localhost:5432/travel_os_test
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high

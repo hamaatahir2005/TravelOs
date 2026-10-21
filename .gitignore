@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+storage/
+coverage/
+*.tsbuildinfo
+.openai/
+artifacts/
+playwright-report/
+test-results/
