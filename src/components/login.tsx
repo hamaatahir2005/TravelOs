@@ -2,9 +2,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plane, ArrowRight, ShieldCheck, Globe2, Eye, EyeOff } from 'lucide-react';
+import { useLanguage } from '@/hooks/use-language';
+import { translate, type Language } from '@/lib/i18n';
 import { Button } from './ui/button';
-export function Login({ demo }: { demo: boolean }) {
+export function Login({
+  demo,
+  initialLanguage = 'en',
+}: {
+  demo: boolean;
+  initialLanguage?: Language;
+}) {
   const router = useRouter();
+  const [lang, setLang] = useLanguage(initialLanguage);
+  const t = (key: string) => translate(lang, key);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [show, setShow] = useState(false);
@@ -41,19 +51,20 @@ export function Login({ demo }: { demo: boolean }) {
         </div>
         <div className="story-content">
           <div className="eyebrow">
-            <span /> THE WORLD IS YOUR WORKSPACE
+            <span />
+            {t('THE WORLD IS YOUR WORKSPACE')}
           </div>
           <h1>
-            Every journey.
+            {t('Every journey.')}
             <br />
-            Every detail.
+            {t('Every detail.')}
             <br />
-            <em>One workspace.</em>
+            <em>{t('One workspace.')}</em>
           </h1>
           <p>
-            A calmer way to manage your travel agency.
+            {t('A calmer way to manage your travel agency.')}
             <br />
-            Bring your bookings, customers and finances together.
+            {t('Bring your bookings, customers and finances together.')}
           </p>
           <div className="orbit-art">
             <Globe2 size={210} strokeWidth={0.5} />
@@ -64,21 +75,34 @@ export function Login({ demo }: { demo: boolean }) {
           </div>
         </div>
         <div className="story-footer">
-          <ShieldCheck size={16} /> Private by design. Built for your team.
+          <ShieldCheck size={16} />
+          {t('Private by design. Built for your team.')}
         </div>
       </section>
       <section className="login-form-wrap">
         <div className="login-form">
+          <div className="login-language">
+            <label>
+              {t('language')}
+              <select value={lang} onChange={(e) => setLang(e.target.value as typeof lang)}>
+                <option value="en">English</option>
+                <option value="ckb">کوردی سۆرانی</option>
+                <option value="ar">العربية</option>
+              </select>
+            </label>
+          </div>
           <div className="login-mobile-brand">
             <Plane /> Travel OS
           </div>
-          <span className="section-kicker">YOUR AGENCY. CONNECTED.</span>
-          <h2>Welcome back</h2>
-          <p className="subtle">Sign in to your agency workspace.</p>
-          {demo && <div className="demo-notice">Demo environment · Fictional data only</div>}
+          <span className="section-kicker">{t('YOUR AGENCY. CONNECTED.')}</span>
+          <h2>{t('Welcome back')}</h2>
+          <p className="subtle">{t('Sign in to your agency workspace.')}</p>
+          {demo && (
+            <div className="demo-notice">{t('Demo environment \u00B7 Fictional data only')}</div>
+          )}
           <form onSubmit={submit}>
             <label>
-              Email address
+              {t('Email address')}
               <input
                 autoComplete="username"
                 name="email"
@@ -88,19 +112,19 @@ export function Login({ demo }: { demo: boolean }) {
               />
             </label>
             <label>
-              Password
+              {t('Password')}
               <div className="password-input">
                 <input
                   autoComplete="current-password"
                   name="password"
                   type={show ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder={t('Enter your password')}
                   required
                   maxLength={128}
                 />
                 <button
                   type="button"
-                  aria-label={show ? 'Hide password' : 'Show password'}
+                  aria-label={t(show ? 'Hide password' : 'Show password')}
                   onClick={() => setShow(!show)}
                 >
                   {show ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -109,25 +133,26 @@ export function Login({ demo }: { demo: boolean }) {
             </label>
             {error && (
               <div className="error-notice" role="alert">
-                {error}
+                {t(error)}
               </div>
             )}
             <Button className="w-full h-12 mt-2" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in to workspace'}
+              {t(busy ? 'Signing in…' : 'Sign in to workspace')}
               <ArrowRight size={17} />
             </Button>
           </form>
           <div className="login-help">
             <ShieldCheck size={16} />
             <span>
-              Authorized agency staff only.
+              {t('Authorized agency staff only.')}
               <br />
-              Need access? Contact your agency administrator.
+              {t('Need access? Contact your agency administrator.')}
             </span>
           </div>
         </div>
         <span className="login-copyright">
-          © {new Date().getFullYear()} Travel OS. Your next chapter, organized.
+          © {new Date().getFullYear()}
+          {t('Travel OS. Your next chapter, organized.')}
         </span>
       </section>
     </main>

@@ -12,18 +12,22 @@ import {
   Plus,
   Pencil,
 } from 'lucide-react';
-import { useApp, money, dateLabel, type Modal } from './workspace';
+import { useApp, type Modal } from './workspace';
+import { isLanguage } from '@/lib/i18n';
 import { Status } from './module-page';
 import { Button } from './ui/button';
 type Field = {
   key: string;
   type?: string;
   required?: boolean;
-  options?: { value: string; label: string }[];
+  options?: {
+    value: string;
+    label: string;
+  }[];
   wide?: boolean;
 };
 export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => void }) {
-  const { data, staff, t, refresh, notify } = useApp();
+  const { data, staff, t, refresh, notify, money, dateLabel, setLang } = useApp();
   const ref = useRef<HTMLDialogElement>(null);
   const [detail, setDetail] = useState(modal.detail ?? false),
     [busy, setBusy] = useState(false),
@@ -38,7 +42,10 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
   if (!data) return null;
   const select = (
     key: string,
-    options: { value: string; label: string }[],
+    options: {
+      value: string;
+      label: string;
+    }[],
     required = true,
   ): Field => ({ key, type: 'select', options, required });
   const text = (key: string, type = 'text', required = true, wide = false): Field => ({
@@ -60,7 +67,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
   }));
   const roles = ['SUPER_ADMIN', 'AGENCY_MANAGER', 'TICKET_AGENT', 'VISA_OFFICER', 'ACCOUNTANT']
     .filter((r) => staff.role === 'SUPER_ADMIN' || r !== 'SUPER_ADMIN')
-    .map((r) => ({ value: r, label: r.replaceAll('_', ' ') }));
+    .map((r) => ({ value: r, label: t(r) }));
   const configs: Record<string, Field[]> = {
     customers: [
       text('name'),
@@ -88,7 +95,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
             'status',
             ['CONFIRMED', 'PENDING', 'CANCELLED', 'COMPLETED'].map((s) => ({
               value: s,
-              label: s.replaceAll('_', ' '),
+              label: t(s.toLowerCase()),
             })),
           ),
           text('notes', 'textarea', false, true),
@@ -121,7 +128,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
               'APPROVED',
               'REJECTED',
               'CANCELLED',
-            ].map((s) => ({ value: s, label: s.replaceAll('_', ' ') })),
+            ].map((s) => ({ value: s, label: t(s.toLowerCase()) })),
           ),
           text('submissionDate', 'date', false),
           text('reminderAt', 'date', false),
@@ -274,8 +281,10 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
       if (!response.ok) throw new Error(result.error);
       await refresh();
       notify(record.id ? 'Record updated successfully' : 'Record created successfully');
-      if (kind === 'settings') window.location.reload();
-      else onClose();
+      if (kind === 'settings') {
+        if (isLanguage(body.language)) setLang(body.language);
+        window.location.reload();
+      } else onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to save');
     } finally {
@@ -321,7 +330,9 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
           record.name ??
           (kind === 'visas' ? `${record.country} · ${record.visaType}` : t(kind)),
       )
-    : `${record.id ? t('edit') : t('add')} · ${t(kind)}`;
+    : kind === 'password'
+      ? t('Change your password')
+      : `${record.id ? t('edit') : t('add')} · ${t(kind)}`;
   return (
     <dialog
       ref={ref}
@@ -346,7 +357,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
         </div>
         {error && (
           <div className="error-notice dialog-error" role="alert">
-            {error}
+            {t(error)}
           </div>
         )}
         {detail ? (
@@ -370,10 +381,12 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                       else setPassport(result.passportNumber);
                     }}
                   >
-                    Reveal passport number
+                    {t('Reveal passport number')}
                   </Button>
                 )}
-                <p className="subtle form-footnote">Access is recorded in the audit trail.</p>
+                <p className="subtle form-footnote">
+                  {t('Access is recorded in the audit trail.')}
+                </p>
               </section>
             )}
             <div className="detail-grid">
@@ -411,7 +424,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
             </div>
             {Array.isArray(record.requiredDocuments) && (
               <section className="detail-section">
-                <h3>Required documents</h3>
+                <h3>{t('Required documents')}</h3>
                 <div className="document-tags">
                   {(record.requiredDocuments as string[]).map((s) => (
                     <span key={s}>{s}</span>
@@ -434,7 +447,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                     <div key={item.id}>
                       <span className="timeline-point" />
                       <div>
-                        <strong>{item.status.replaceAll('_', ' ')}</strong>
+                        <strong>{t(item.status.toLowerCase())}</strong>
                         <p>{item.note}</p>
                         <small>{dateLabel(item.createdAt)}</small>
                       </div>
@@ -445,7 +458,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
             )}
             {relatedInvoices.length > 0 && (
               <section className="detail-section">
-                <h3>{kind === 'customers' ? 'Travel & payment history' : t('invoices')}</h3>
+                <h3>{kind === 'customers' ? t('Travel & payment history') : t('invoices')}</h3>
                 {relatedInvoices.map((i) => (
                   <div className="detail-invoice" key={i.id}>
                     <span>
@@ -455,7 +468,9 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                     <span>
                       <strong>{money(i.total, i.currency)}</strong>
                       <small>
-                        Paid {money(i.paid, i.currency)} · Balance{' '}
+                        {t('paid')} {money(i.paid, i.currency)}
+                        {' · '}
+                        {t('balance')}{' '}
                         {money(Math.max(0, Number(i.total) - i.paid - i.refunded), i.currency)}
                       </small>
                     </span>
@@ -463,7 +478,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                       href={`/print/invoice/${i.id}`}
                       target="_blank"
                       rel="noreferrer"
-                      aria-label="Print invoice"
+                      aria-label={t('Print invoice')}
                     >
                       <Printer size={18} />
                     </a>
@@ -473,7 +488,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
             )}
             {kind === 'customers' && (
               <section className="detail-section">
-                <h3>Payment history</h3>
+                <h3>{t('Payment history')}</h3>
                 {relatedInvoices.flatMap((i) =>
                   i.payments.map((p) => (
                     <div className="detail-invoice" key={p.id}>
@@ -485,7 +500,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                   )),
                 )}
                 {relatedInvoices.every((i) => !i.payments.length) && (
-                  <p className="subtle">No customer payments yet.</p>
+                  <p className="subtle">{t('No customer payments yet.')}</p>
                 )}
               </section>
             )}
@@ -493,7 +508,12 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
               <section className="detail-section">
                 <h3>{t('documents')}</h3>
                 <div className="document-list">
-                  {((record.documents ?? []) as { id: string; name: string }[]).map((doc) => (
+                  {(
+                    (record.documents ?? []) as {
+                      id: string;
+                      name: string;
+                    }[]
+                  ).map((doc) => (
                     <a href={`/api/documents/${doc.id}`} key={doc.id}>
                       <FileText size={17} />
                       {doc.name}
@@ -504,8 +524,8 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                 {writable && (
                   <label className="upload-zone">
                     <Upload size={21} />
-                    <strong>{busy ? 'Uploading…' : t('upload')}</strong>
-                    <span>PDF, PNG, JPEG · Up to 3 MB · Encrypted & private</span>
+                    <strong>{busy ? t('Uploading…') : t('upload')}</strong>
+                    <span>{t('PDF, PNG, JPEG \u00B7 Up to 3 MB \u00B7 Encrypted & private')}</span>
                     <input
                       disabled={busy}
                       type="file"
@@ -536,8 +556,10 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                   <ShieldCheck size={17} />
                   <span>
                     {record.id
-                      ? 'Financial amounts stay immutable. Use refunds for financial corrections.'
-                      : 'An invoice and balanced ledger entries are generated automatically.'}
+                      ? t(
+                          'Financial amounts stay immutable. Use refunds for financial corrections.',
+                        )
+                      : t('An invoice and balanced ledger entries are generated automatically.')}
                   </span>
                 </div>
               )}
@@ -557,15 +579,19 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
                       >
                         {field.required && (
                           <option value="" disabled>
-                            Select…
+                            {t('Select\u2026')}
                           </option>
                         )}
                         {!field.required && (
-                          <option value="">No cash portion / not required</option>
+                          <option value="">{t('No cash portion / not required')}</option>
                         )}
                         {field.options?.map((o) => (
                           <option key={o.value} value={o.value}>
-                            {o.label}
+                            {['role', 'status', 'currency', 'direction', 'active'].includes(
+                              field.key,
+                            )
+                              ? t(o.label)
+                              : o.label}
                           </option>
                         ))}
                       </select>
@@ -596,13 +622,16 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
               </div>
               {kind === 'refunds' && (
                 <p className="subtle form-footnote">
-                  The unpaid portion reduces the invoice balance. Any paid portion is returned from
-                  the selected cash account. Supplier costs remain payable until separately settled.
+                  {t(
+                    'The unpaid portion reduces the invoice balance. Any paid portion is returned from the selected cash account. Supplier costs remain payable until separately settled.',
+                  )}
                 </p>
               )}
               {kind === 'employees' && (
                 <p className="subtle form-footnote">
-                  Share temporary credentials securely. Staff access can be disabled at any time.
+                  {t(
+                    'Share temporary credentials securely. Staff access can be disabled at any time.',
+                  )}
                 </p>
               )}
             </div>
@@ -612,7 +641,7 @@ export function RecordModal({ modal, onClose }: { modal: Modal; onClose: () => v
               </Button>
               <Button type="submit" disabled={busy}>
                 {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Plus size={16} />}
-                {busy ? 'Saving…' : t('save')}
+                {busy ? t('Saving…') : t('save')}
               </Button>
             </div>
           </form>

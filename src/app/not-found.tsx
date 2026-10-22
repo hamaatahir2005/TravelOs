@@ -1,11 +1,15 @@
 import Link from 'next/link';
-export default function NotFound() {
+import { readLanguage } from '@/lib/server-language';
+import { translate } from '@/lib/i18n';
+export default async function NotFound() {
+  const language = await readLanguage();
+  const t = (key: string) => translate(language, key);
   return (
     <main className="empty-state">
-      <h1>Page not found</h1>
-      <p className="mt-4">This page is unavailable or you don’t have access.</p>
+      <h1>{t('Page not found')}</h1>
+      <p className="mt-4">{t('This page is unavailable or you don’t have access.')}</p>
       <Link href="/dashboard" className="text-link justify-center">
-        Return to your workspace →
+        {t('Return to your workspace →')}
       </Link>
     </main>
   );

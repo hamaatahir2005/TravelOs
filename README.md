@@ -57,6 +57,10 @@ In **Accounting**, switch between payments, expenses, refunds, cash accounts and
 
 In **Invoices**, open the printer action. Use your browser's **Save as PDF** option for invoices and receipts. Reports support CSV downloads and print-to-PDF. PDF export uses the browser print dialog; there is no external PDF rendering service.
 
+## Languages
+
+Choose English, Sorani or Arabic on the login page or in the workspace header. The preference persists across navigation, sign-out and printed invoices. Sorani and Arabic use RTL layouts and Iraqi number conventions; Sorani month names are supplied explicitly so they also work in browsers without Sorani locale data. Common validation and operational errors follow the selected language. Names, notes, identifiers and customized receipt text remain exactly as entered.
+
 ## Roles
 
 - **Super Admin / Agency Manager:** agency operations and configuration. Only a Super Admin can create or modify another Super Admin.

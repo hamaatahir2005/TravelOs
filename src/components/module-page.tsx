@@ -37,8 +37,9 @@ import {
   Check,
   Upload,
 } from 'lucide-react';
-import { useApp, money, dateLabel, type AppData } from './workspace';
+import { useApp, type AppData } from './workspace';
 import { Button } from './ui/button';
+import { localeFor, formatCalendar, type TranslationValues } from '@/lib/i18n';
 import type { Module } from '@/lib/permissions';
 export function Status({ value }: { value: string }) {
   const { t } = useApp();
@@ -64,8 +65,8 @@ export function ModulePage({ module }: { module: Module }) {
     return (
       <div className="empty-state">
         <ShieldCheck size={40} />
-        <h2>Access restricted</h2>
-        <p>Your role does not have permission to view this module.</p>
+        <h2>{t('Access restricted')}</h2>
+        <p>{t('Your role does not have permission to view this module.')}</p>
       </div>
     );
   if (module === 'dashboard') return <Dashboard />;
@@ -74,7 +75,7 @@ export function ModulePage({ module }: { module: Module }) {
   return <RecordTable module={module} data={data} staffId={staff.id} t={t} open={open} />;
 }
 function Kpis() {
-  const { data, t } = useApp();
+  const { data, t, money } = useApp();
   if (!data) return null;
   const s = data.summary;
   const cards = [
@@ -83,14 +84,16 @@ function Kpis() {
       value: s.ticketSales,
       icon: Ticket,
       color: 'sky',
-      caption: `${data.invoices.filter((i) => i.ticketId).length} ticket invoices`,
+      caption: t('{count} ticket invoices', {
+        count: data.invoices.filter((i) => i.ticketId).length,
+      }),
     },
     {
       key: 'visaSales',
       value: s.visaSales,
       icon: FileCheck2,
       color: 'violet',
-      caption: `${data.invoices.filter((i) => i.visaId).length} visa invoices`,
+      caption: t('{count} visa invoices', { count: data.invoices.filter((i) => i.visaId).length }),
     },
     {
       key: 'grossProfit',
@@ -122,7 +125,7 @@ function Kpis() {
             <span className={`tiny-trend ${c.value >= 0 ? 'positive' : 'negative'}`}>
               {c.value >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} USD
             </span>
-            <span>{c.caption}</span>
+            <span>{t(c.caption)}</span>
           </div>
         </div>
       ))}
@@ -130,12 +133,18 @@ function Kpis() {
   );
 }
 function RevenueChart({ full = false }: { full?: boolean }) {
-  const { data, t } = useApp();
+  const { data, t, money, lang } = useApp();
   const [period, setPeriod] = useState('monthly');
   if (!data) return null;
   const groups: Record<
     string,
-    { date: string; label: string; sales: number; profit: number; expenses: number }
+    {
+      date: string;
+      label: string;
+      sales: number;
+      profit: number;
+      expenses: number;
+    }
   > = {};
   for (const row of data.daily) {
     const key =
@@ -148,10 +157,10 @@ function RevenueChart({ full = false }: { full?: boolean }) {
       date: key,
       label:
         period === 'daily'
-          ? new Date(row.date).toLocaleDateString('en', { day: 'numeric', month: 'short' })
+          ? formatCalendar(row.date, { day: 'numeric', month: 'short' }, lang)
           : period === 'yearly'
             ? key
-            : new Date(`${key}-01`).toLocaleDateString('en', { month: 'short', year: '2-digit' }),
+            : formatCalendar(`${key}-01`, { month: 'short', year: '2-digit' }, lang),
       sales: 0,
       profit: 0,
       expenses: 0,
@@ -166,7 +175,7 @@ function RevenueChart({ full = false }: { full?: boolean }) {
       <div className="panel-heading">
         <div>
           <h2>{t('revenue')}</h2>
-          <p>Sales and profit · USD equivalent</p>
+          <p>{t('Sales and profit \u00B7 USD equivalent')}</p>
         </div>
         <div className="segmented-control">
           {['daily', 'monthly', 'yearly'].map((p) => (
@@ -179,16 +188,16 @@ function RevenueChart({ full = false }: { full?: boolean }) {
       <div className="chart-meta">
         <div>
           <span className="chart-total">{money(chartData.reduce((s, r) => s + r.sales, 0))}</span>
-          <small>Recorded sales</small>
+          <small>{t('Recorded sales')}</small>
         </div>
         <div className="chart-legend">
           <span>
             <i className="sales-dot" />
-            Sales
+            {t('Sales')}
           </span>
           <span>
             <i className="profit-dot" />
-            Net profit
+            {t('Net profit')}
           </span>
         </div>
       </div>
@@ -227,7 +236,8 @@ function RevenueChart({ full = false }: { full?: boolean }) {
                 formatter={(value) => money(value)}
               />
               <Area
-                name="Sales"
+                isAnimationActive={false}
+                name={t('Sales')}
                 type="monotone"
                 dataKey="sales"
                 stroke="#0EA5E9"
@@ -235,7 +245,8 @@ function RevenueChart({ full = false }: { full?: boolean }) {
                 fill="url(#salesGradient)"
               />
               <Area
-                name="Net profit"
+                isAnimationActive={false}
+                name={t('netProfit')}
                 type="monotone"
                 dataKey="profit"
                 stroke="#123C73"
@@ -247,13 +258,13 @@ function RevenueChart({ full = false }: { full?: boolean }) {
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="empty-chart">Your revenue story starts with your first booking.</div>
+        <div className="empty-chart">{t('Your revenue story starts with your first booking.')}</div>
       )}
     </section>
   );
 }
 function Dashboard() {
-  const { data, t, open } = useApp();
+  const { data, t, open, money, dateLabel, lang } = useApp();
   if (!data) return null;
   const upcoming = data.tickets
     .filter((x) => new Date(x.departureAt) > new Date() && x.status === 'CONFIRMED')
@@ -268,8 +279,8 @@ function Dashboard() {
         <section className="panel balance-panel">
           <div className="panel-heading">
             <div>
-              <h2>Financial snapshot</h2>
-              <p>Keep your cash flow in focus</p>
+              <h2>{t('Financial snapshot')}</h2>
+              <p>{t('Keep your cash flow in focus')}</p>
             </div>
             <span className="subtle">
               <Wallet size={18} />
@@ -308,9 +319,9 @@ function Dashboard() {
           <div className="snapshot-note">
             <ShieldCheck size={15} />
             <span>
-              Balances from the posted ledger.
+              {t('Balances from the posted ledger.')}
               <br />
-              All figures shown in USD.
+              {t('All figures shown in USD.')}
             </span>
           </div>
         </section>
@@ -320,7 +331,7 @@ function Dashboard() {
           <div className="panel-heading">
             <div>
               <h2>{t('recentTickets')}</h2>
-              <p>The latest journeys on your books</p>
+              <p>{t('The latest journeys on your books')}</p>
             </div>
             <Link
               className="text-link"
@@ -334,8 +345,8 @@ function Dashboard() {
             <table>
               <thead>
                 <tr>
-                  <th>Traveler / reference</th>
-                  <th>Route</th>
+                  <th>{t('Traveler / reference')}</th>
+                  <th>{t('Route')}</th>
                   <th>{t('date')}</th>
                   <th>{t('total')}</th>
                   <th>{t('status')}</th>
@@ -387,7 +398,8 @@ function Dashboard() {
             </table>
             {!data.tickets.length && (
               <div className="empty-table">
-                No flight bookings to display. <Link href="/invoices">View recent invoices →</Link>
+                {t('No flight bookings to display.')}
+                <Link href="/invoices">{t('View recent invoices \u2192')}</Link>
               </div>
             )}
           </div>
@@ -397,7 +409,7 @@ function Dashboard() {
             <div className="panel-heading">
               <div>
                 <h2>{t('upcoming')}</h2>
-                <p>A little ahead of every departure</p>
+                <p>{t('A little ahead of every departure')}</p>
               </div>
               <CalendarDays size={18} className="subtle" />
             </div>
@@ -408,10 +420,8 @@ function Dashboard() {
                 onClick={() => open({ kind: 'tickets', record: ticket, detail: true })}
               >
                 <span className="flight-date">
-                  <strong>{new Date(ticket.departureAt).getDate()}</strong>
-                  <small>
-                    {new Date(ticket.departureAt).toLocaleDateString('en', { month: 'short' })}
-                  </small>
+                  <strong>{formatCalendar(ticket.departureAt, { day: 'numeric' }, lang)}</strong>
+                  <small>{formatCalendar(ticket.departureAt, { month: 'short' }, lang)}</small>
                 </span>
                 <span>
                   <strong>
@@ -422,29 +432,32 @@ function Dashboard() {
                   <small>{ticket.passengerName}</small>
                 </span>
                 <span className="flight-time">
-                  {new Date(ticket.departureAt).toLocaleTimeString('en-GB', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {formatCalendar(
+                    ticket.departureAt,
+                    { hour: '2-digit', minute: '2-digit', hour12: false },
+                    lang,
+                  )}
                   <small>{ticket.airline}</small>
                 </span>
               </button>
             ))}
             {!upcoming.length && (
-              <p className="empty-small">You’re all caught up. No upcoming departures.</p>
+              <p className="empty-small">
+                {t('You\u2019re all caught up. No upcoming departures.')}
+              </p>
             )}
           </section>
           <section className="quick-action-card">
             <div className="quick-action-globe">
               <Globe2 size={90} strokeWidth={0.6} />
             </div>
-            <span className="quick-kicker">LESS ADMIN. MORE ADVENTURE.</span>
+            <span className="quick-kicker">{t('LESS ADMIN. MORE ADVENTURE.')}</span>
             <h3>
-              Ready for the next
+              {t('Ready for the next')}
               <br />
-              great journey?
+              {t('great journey?')}
             </h3>
-            <p>Your next booking is a click away.</p>
+            <p>{t('Your next booking is a click away.')}</p>
             <Button
               variant="outline"
               size="sm"
@@ -475,7 +488,11 @@ function Dashboard() {
   );
 }
 type Row = Record<string, unknown>;
-type Column = { key: string; label: string; render?: (row: Row) => React.ReactNode };
+type Column = {
+  key: string;
+  label: string;
+  render?: (row: Row) => React.ReactNode;
+};
 function RecordTable({
   module,
   data,
@@ -485,11 +502,11 @@ function RecordTable({
 }: {
   module: Module;
   data: AppData;
-  t: (v: string) => string;
+  t: (v: string, values?: TranslationValues) => string;
   open: (m: { kind: string; record?: Row; detail?: boolean }) => void;
   staffId: string;
 }) {
-  const { query, setQuery } = useApp();
+  const { query, setQuery, money, dateLabel, lang } = useApp();
   const [page, setPage] = useState(0),
     [status, setStatus] = useState('all'),
     [tab, setTab] = useState('payments');
@@ -738,7 +755,7 @@ function RecordTable({
     ],
     employees: [
       { key: 'name', label: 'Team member', render: person },
-      { key: 'role', label: 'Role', render: (r) => String(r.role).replaceAll('_', ' ') },
+      { key: 'role', label: 'Role', render: (r) => t(String(r.role)) },
       {
         key: 'active',
         label: 'Access',
@@ -750,7 +767,19 @@ function RecordTable({
       {
         key: 'createdAt',
         label: 'Timestamp',
-        render: (r) => new Date(String(r.createdAt)).toLocaleString(),
+        render: (r) =>
+          formatCalendar(
+            r.createdAt,
+            {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            },
+            lang,
+          ),
       },
       {
         key: 'action',
@@ -770,7 +799,7 @@ function RecordTable({
   const filtered = rows.filter(
     (r) =>
       (!query ||
-        `${JSON.stringify(r)} ${lookup('customers', r.customerId)} ${lookup('suppliers', r.supplierId)}`
+        `${JSON.stringify(r)} ${lookup('customers', r.customerId)} ${lookup('suppliers', r.supplierId)} ${t(String(r.status ?? '').toLowerCase())} ${t(String(r.role ?? ''))}`
           .toLowerCase()
           .includes(query.toLowerCase())) &&
       (status === 'all' || String(r.status ?? r.direction).toLowerCase() === status.toLowerCase()),
@@ -783,7 +812,6 @@ function RecordTable({
     data.permissions[module].write && !['audit', 'ledger', 'invoices'].includes(kind);
   const hasDetails = ['customers', 'tickets', 'visas', 'suppliers', 'invoices'].includes(kind);
   const statuses = [...new Set(rows.map((r) => r.status ?? r.direction).filter(Boolean))];
-
   return (
     <>
       {module === 'accounting' && (
@@ -824,8 +852,8 @@ function RecordTable({
             </h2>
             <p>
               {['payments', 'expenses', 'refunds', 'ledger'].includes(kind)
-                ? 'Posted records are immutable. Corrections require a new transaction.'
-                : 'Your agency records, in one place.'}
+                ? t('Posted records are immutable. Corrections require a new transaction.')
+                : t('Your agency records, in one place.')}
             </p>
           </div>
           <div className="toolbar-buttons">
@@ -862,7 +890,7 @@ function RecordTable({
             <div className="status-filter">
               <SlidersHorizontal size={14} />
               <select
-                aria-label="Filter by status"
+                aria-label={t('Filter by status')}
                 value={status}
                 onChange={(e) => {
                   setStatus(e.target.value);
@@ -872,7 +900,7 @@ function RecordTable({
                 <option value="all">{t('all')}</option>
                 {statuses.map((s) => (
                   <option key={String(s)} value={String(s)}>
-                    {String(s).replaceAll('_', ' ')}
+                    {t(String(s).toLowerCase())}
                   </option>
                 ))}
               </select>
@@ -884,7 +912,7 @@ function RecordTable({
             <thead>
               <tr>
                 {cols.map((c) => (
-                  <th key={c.key}>{t(c.key) === c.key ? c.label : t(c.key)}</th>
+                  <th key={c.key}>{t(c.label)}</th>
                 ))}
                 {(hasDetails || module === 'employees') && (
                   <th className="action-col">{t('actions')}</th>
@@ -903,7 +931,7 @@ function RecordTable({
                         {kind === 'invoices' ? (
                           <Button variant="ghost" size="icon" asChild>
                             <a
-                              aria-label="Print invoice"
+                              aria-label={t('Print invoice')}
                               href={`/print/invoice/${row.id}`}
                               target="_blank"
                               rel="noreferrer"
@@ -957,14 +985,17 @@ function RecordTable({
         </div>
         <div className="table-pagination">
           <span>
-            Showing {filtered.length ? currentPage * 10 + 1 : 0}–
-            {Math.min((currentPage + 1) * 10, filtered.length)} of {filtered.length} records
+            {t('Showing {from}–{to} of {total} records', {
+              from: filtered.length ? currentPage * 10 + 1 : 0,
+              to: Math.min((currentPage + 1) * 10, filtered.length),
+              total: filtered.length,
+            })}
           </span>
           <div>
             <Button
               variant="outline"
               size="icon"
-              aria-label="Previous page"
+              aria-label={t('Previous page')}
               disabled={currentPage === 0}
               onClick={() => setPage(currentPage - 1)}
             >
@@ -976,7 +1007,7 @@ function RecordTable({
             <Button
               variant="outline"
               size="icon"
-              aria-label="Next page"
+              aria-label={t('Next page')}
               disabled={currentPage + 1 >= pageCount}
               onClick={() => setPage(currentPage + 1)}
             >
@@ -989,7 +1020,7 @@ function RecordTable({
   );
 }
 function Reports() {
-  const { data, t } = useApp();
+  const { data, t, money } = useApp();
   if (!data) return null;
   const s = data.summary;
   const totals = data.ledger.reduce(
@@ -1000,7 +1031,8 @@ function Reports() {
     <>
       <div className="report-toolbar">
         <span className="info-chip">
-          <ShieldCheck size={15} /> USD · From immutable ledger records
+          <ShieldCheck size={15} />
+          {t('USD \u00B7 From immutable ledger records')}
         </span>
         <div>
           <Button variant="outline" asChild>
@@ -1020,7 +1052,7 @@ function Reports() {
       <div className="reports-grid">
         <section className="panel">
           <div className="panel-heading">
-            <h2>Profit & loss</h2>
+            <h2>{t('Profit & loss')}</h2>
             <ReceiptText size={18} />
           </div>
           <div className="report-lines">
@@ -1034,8 +1066,11 @@ function Reports() {
               ['Foreign exchange / rounding', -s.foreignExchange],
               ['Net profit', s.netProfit],
             ].map(([label, value]) => (
-              <div key={label} className={String(label).includes('profit') ? 'total-line' : ''}>
-                <span>{label}</span>
+              <div
+                key={t(String(label))}
+                className={String(label).includes('profit') ? 'total-line' : ''}
+              >
+                <span>{t(String(label))}</span>
                 <strong>{money(value)}</strong>
               </div>
             ))}
@@ -1043,20 +1078,20 @@ function Reports() {
         </section>
         <section className="panel">
           <div className="panel-heading">
-            <h2>Ledger reconciliation</h2>
+            <h2>{t('Ledger reconciliation')}</h2>
             <ShieldCheck size={18} />
           </div>
           <div className="report-lines">
             <div>
-              <span>Base currency debits</span>
+              <span>{t('Base currency debits')}</span>
               <strong>{money(totals.debit)}</strong>
             </div>
             <div>
-              <span>Base currency credits</span>
+              <span>{t('Base currency credits')}</span>
               <strong>{money(totals.credit)}</strong>
             </div>
             <div className="total-line">
-              <span>Difference</span>
+              <span>{t('Difference')}</span>
               <strong>{money(totals.debit - totals.credit)}</strong>
             </div>
             <div
@@ -1066,13 +1101,14 @@ function Reports() {
             >
               <Check size={17} />
               {Math.abs(totals.debit - totals.credit) < 0.01
-                ? 'All posted entries are balanced'
-                : 'Ledger requires review'}
+                ? t('All posted entries are balanced')
+                : t('Ledger requires review')}
             </div>
           </div>
           <div className="report-note">
-            Historical exchange rates are captured on each transaction. Supplier settlement uses the
-            payment-date rate; FX revaluation requires an accountant’s review.
+            {t(
+              'Historical exchange rates are captured on each transaction. Realized exchange differences are posted on settlement.',
+            )}
           </div>
         </section>
       </div>
@@ -1080,14 +1116,14 @@ function Reports() {
   );
 }
 function Settings() {
-  const { staff, t, open, data } = useApp();
+  const { staff, t, open, data, lang } = useApp();
   return (
     <div className="settings-grid">
       <section className="panel">
         <div className="panel-heading">
           <div>
             <h2>{staff.agency.name}</h2>
-            <p>Agency profile & receipt preferences</p>
+            <p>{t('Agency profile & receipt preferences')}</p>
           </div>
           <Button
             variant="outline"
@@ -1100,7 +1136,13 @@ function Settings() {
         <div className="settings-body">
           <div className="agency-logo-placeholder">
             {staff.agency.logoDocumentId ? (
-              <Image src="/api/agency/logo" width={65} height={65} alt="Agency logo" unoptimized />
+              <Image
+                src="/api/agency/logo"
+                width={65}
+                height={65}
+                alt={t('Agency logo')}
+                unoptimized
+              />
             ) : (
               <Plane size={32} />
             )}
@@ -1115,16 +1157,16 @@ function Settings() {
               ['Invoice prefix', staff.agency.invoicePrefix],
               ['Receipt footer', staff.agency.receiptHeader],
             ].map(([label, value]) => (
-              <div key={label}>
-                <small>{label}</small>
+              <div key={t(String(label))}>
+                <small>{t(String(label))}</small>
                 <strong>{value || '—'}</strong>
               </div>
             ))}
           </div>
           <label className="upload-zone">
             <Upload size={20} />
-            <strong>Upload agency logo</strong>
-            <span>PNG or JPEG · Maximum 3 MB</span>
+            <strong>{t('Upload agency logo')}</strong>
+            <span>{t('PNG or JPEG \u00B7 Maximum 3 MB')}</span>
             <input
               type="file"
               accept="image/png,image/jpeg"
@@ -1148,7 +1190,7 @@ function Settings() {
             <h2>{t('exchangeRates')}</h2>
             <Button variant="outline" size="sm" onClick={() => open({ kind: 'exchangeRates' })}>
               <Plus size={14} />
-              Update
+              {t('Update')}
             </Button>
           </div>
           <div className="exchange-rate">
@@ -1159,49 +1201,54 @@ function Settings() {
             <strong>
               {Number(
                 data?.exchangeRates.find((r) => r.currency === 'IQD')?.unitsPerUsd ?? 0,
-              ).toLocaleString()}{' '}
+              ).toLocaleString(localeFor(lang))}{' '}
               IQD
             </strong>
           </div>
           <p className="report-note">
-            Rates apply to new transactions only. Historical rates are preserved.
+            {t('Rates apply to new transactions only. Historical rates are preserved.')}
           </p>
         </section>
         <section className="panel backup-panel">
           <div className="panel-heading">
-            <h2>Backup & recovery</h2>
+            <h2>{t('Backup & recovery')}</h2>
             <ShieldCheck size={18} />
           </div>
           <div className="settings-body">
             <p>
-              Enable daily encrypted PostgreSQL backups and point-in-time recovery with your
-              database provider.
+              {t(
+                'Enable daily encrypted PostgreSQL backups and point-in-time recovery with your database provider.',
+              )}
             </p>
             <ol>
               <li>
-                Back up the database with <code>pg_dump</code>.
+                {t('Back up the database with')}
+                <code>pg_dump</code>.
               </li>
-              <li>Keep the passport encryption key in a separate secret vault.</li>
+              <li>{t('Keep the passport encryption key in a separate secret vault.')}</li>
               <li>
-                Restore into an isolated database and verify the ledger before switching traffic.
+                {t(
+                  'Restore into an isolated database and verify the ledger before switching traffic.',
+                )}
               </li>
             </ol>
             <p className="subtle">
-              See DEPLOYMENT.md for exact commands and recovery checks. CSV exports are reports, not
-              full backups.
+              {t(
+                'See DEPLOYMENT.md for exact commands and recovery checks. CSV exports are reports, not full backups.',
+              )}
             </p>
           </div>
         </section>
         <div className="mb-5">
           <Button variant="outline" onClick={() => open({ kind: 'password' })}>
-            Change your password
+            {t('Change your password')}
           </Button>
         </div>
         <section className="settings-security">
           <ShieldCheck size={23} />
           <div>
-            <strong>Protected by design</strong>
-            <p>Agency isolation · Encrypted documents · Staff access</p>
+            <strong>{t('Protected by design')}</strong>
+            <p>{t('Agency isolation \u00B7 Encrypted documents \u00B7 Staff access')}</p>
           </div>
         </section>
       </div>

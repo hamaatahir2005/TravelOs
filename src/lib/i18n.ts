@@ -1,3 +1,4 @@
+import { messages } from './messages';
 export type Language = 'en' | 'ar' | 'ckb';
 export const translations: Record<Language, Record<string, string>> = {
   en: {
@@ -435,3 +436,94 @@ Object.assign(translations.ckb, {
   completed: 'تەواوکراوە',
   documents_pending: 'چاوەڕوانی بەڵگەنامە',
 });
+
+// Also resolve English source labels, so table and accessibility labels share the same catalog.
+for (const [key, english] of Object.entries(translations.en)) {
+  for (const language of ['en', 'ar', 'ckb'] as const)
+    translations[language][english] ??= translations[language][key] ?? english;
+}
+for (const [english, localized] of Object.entries(messages)) {
+  translations.en[english] = english;
+  translations.ar[english] = localized.ar;
+  translations.ckb[english] = localized.ckb;
+}
+export type TranslationValues = Record<string, string | number>;
+export function isLanguage(value: unknown): value is Language {
+  return value === 'en' || value === 'ar' || value === 'ckb';
+}
+export function localeFor(language: Language) {
+  // Sorani ICU data is missing in some browsers. Use Iraqi number conventions consistently.
+  return language === 'en' ? 'en-GB' : 'ar-IQ';
+}
+export function translate(language: Language, key: string, values: TranslationValues = {}) {
+  const text =
+    translations[language]?.[key] ??
+    translations.en[key] ??
+    key.replaceAll('_', ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+  return text.replace(/\{(\w+)\}/g, (match, name: string) =>
+    values[name] === undefined ? match : String(values[name]),
+  );
+}
+export function formatMoney(value: unknown, currency = 'USD', language: Language = 'en') {
+  return new Intl.NumberFormat(language === 'en' ? 'en-US' : localeFor(language), {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: currency === 'IQD' ? 0 : 2,
+  }).format(Number(value ?? 0));
+}
+const soraniMonths = [
+  'کانوونی دووەم',
+  'شوبات',
+  'ئازار',
+  'نیسان',
+  'ئایار',
+  'حوزەیران',
+  'تەمووز',
+  'ئاب',
+  'ئەیلوول',
+  'تشرینی یەکەم',
+  'تشرینی دووەم',
+  'کانوونی یەکەم',
+];
+const soraniShortMonths = [
+  'کانون٢',
+  'شوبات',
+  'ئازار',
+  'نیسان',
+  'ئایار',
+  'حوزەیران',
+  'تەمووز',
+  'ئاب',
+  'ئەیلوول',
+  'تشرین١',
+  'تشرین٢',
+  'کانون١',
+];
+export function formatCalendar(
+  value: unknown,
+  options: Intl.DateTimeFormatOptions,
+  language: Language = 'en',
+) {
+  const date = value instanceof Date ? value : new Date(String(value));
+  const formatter = new Intl.DateTimeFormat(localeFor(language), {
+    ...options,
+    calendar: 'gregory',
+  });
+  if (language !== 'ckb') return formatter.format(date);
+  return formatter
+    .formatToParts(date)
+    .map((part) => {
+      if (part.type === 'month' && ['short', 'long', 'narrow'].includes(String(options.month)))
+        return options.month === 'long'
+          ? soraniMonths[date.getMonth()]
+          : soraniShortMonths[date.getMonth()];
+      if (part.type === 'dayPeriod') return date.getHours() < 12 ? 'پ.ن' : 'د.ن';
+      return part.value;
+    })
+    .join('');
+}
+export function formatDate(value: unknown, language: Language = 'en') {
+  return value
+    ? formatCalendar(value, { day: '2-digit', month: 'short', year: 'numeric' }, language)
+    : '—';
+}

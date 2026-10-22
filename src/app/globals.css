@@ -2461,3 +2461,61 @@ tr:nth-child(3n) .table-avatar {
     display: inline-flex;
   }
 }
+.login-language {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+.login-language label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--subtle);
+  font-size: 11px;
+  margin: 0;
+}
+.login-language select {
+  background: var(--panel);
+  color: var(--text);
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+[dir='rtl'] .story-content h1 {
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+[dir='rtl'] .page-heading h1,
+[dir='rtl'] .quick-action-card h3 {
+  letter-spacing: 0;
+}
+[dir='rtl'] .kpi-value {
+  letter-spacing: 0;
+  font-size: 26px;
+}
+[dir='rtl'] .kpi-caption {
+  white-space: normal;
+  line-height: 1.7;
+}
+[dir='rtl'] .quick-kicker {
+  letter-spacing: 0;
+}
+.kpi-value,
+.chart-total,
+.balance-item strong {
+  unicode-bidi: plaintext;
+}
+.form-grid input[name='email'],
+.form-grid input[name='phone'],
+.form-grid input[name='pnr'],
+.form-grid input[name='ticketNumber'],
+.form-grid input[name='passportNumber'],
+.form-grid input[name='origin'],
+.form-grid input[name='destination'],
+.login-form input[type='email'] {
+  direction: ltr;
+  text-align: start;
+}
+.reminders-popover .overdue {
+  color: #dc5663;
+}

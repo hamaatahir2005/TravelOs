@@ -143,10 +143,10 @@ test('mobile layouts, Sorani RTL, Arabic RTL and dark theme', async ({ page }) =
   }
   await page.getByLabel('Language', { exact: true }).selectOption('ckb');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('button', { name: 'کردنەوەی ڕێنیشاندەر' }).click();
   await expect(page.getByRole('link', { name: 'بلیتی فڕۆکە' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close navigation menu', exact: true }).click();
-  await page.getByRole('button', { name: 'Dark mode', exact: true }).click();
+  await page.getByRole('button', { name: 'داخستنی لیستی ڕێنیشاندەر', exact: true }).click();
+  await page.getByRole('button', { name: 'دۆخی تاریک', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.screenshot({
     path: 'artifacts/dashboard-sorani-dark.png',
@@ -158,4 +158,40 @@ test('mobile layouts, Sorani RTL, Arabic RTL and dark theme', async ({ page }) =
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await page.getByLabel('زمان', { exact: true }).selectOption('ar');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
+});
+
+test('language persists through login, reports, receipts and validation errors', async ({
+  page,
+}) => {
+  await page.goto('/login');
+  await page.locator('.login-language select').selectOption('ckb');
+  await expect(page.getByRole('heading', { name: 'بەخێربێیتەوە' })).toBeVisible();
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ckb');
+  await page.locator('[name=email]').fill(process.env.DEMO_EMAIL!);
+  await page.locator('[name=password]').fill(process.env.DEMO_PASSWORD!);
+  await page.getByRole('button', { name: 'چوونەژوورەوە بۆ شوێنی کار', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByText('پوختەی دارایی', { exact: true })).toBeVisible();
+  await page.goto('/reports');
+  await expect(page.getByRole('heading', { name: 'قازانج و زیان' })).toBeVisible();
+  await expect(page.getByText('هەموو تۆمارە داراییەکان هاوسەنگن')).toBeVisible();
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { name: 'پاشەکەوت و گەڕاندنەوە' })).toBeVisible();
+  const data = await (await page.request.get('/api/data')).json();
+  await page.goto(`/print/invoice/${data.invoices[0].id}`);
+  await expect(page.locator('main')).toHaveAttribute('dir', 'rtl');
+  await expect(page.getByText('بڕی پێویست بۆ پارەدان', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'چاپ / پاشەکەوتی PDF' })).toBeVisible();
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'چوونەدەرەوە', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.locator('.login-language select').selectOption('ar');
+  await expect(page.getByRole('heading', { name: 'مرحباً بعودتك' })).toBeVisible();
+  await page.locator('[name=email]').fill(process.env.DEMO_EMAIL!);
+  await page.locator('[name=password]').fill('Intentionally-invalid-demo-password');
+  await page.getByRole('button', { name: 'الدخول إلى مساحة العمل', exact: true }).click();
+  await expect(page.locator('.login-form').getByRole('alert')).toContainText(
+    'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+  );
 });

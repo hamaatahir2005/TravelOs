@@ -143,5 +143,5 @@ Every difference must be zero. Test a staff login and document download with the
 - Browser print produces PDFs; the app does not require a separate rendering service.
 - Data tables paginate in the browser and load an agency snapshot. Introduce server pagination and SQL aggregates before high-volume deployments.
 - Reminders appear in the dashboard and notification panel. Email/SMS/push delivery needs a separately configured service and explicit authorization.
-- Core navigation, forms, statuses and RTL layouts support English, Sorani and Arabic; some explanatory/help copy remains English and should receive a native-language review before agency rollout.
+- Login, navigation, forms, explanatory help, reports, printable receipts and common server errors support English, Sorani and Arabic. The selected language persists across login and printing. Customer names, notes, agency receipt text and other entered data retain their original language.
 - Device viewport tests emulate mobile dimensions; physical iOS/Android/Windows testing remains a deployment acceptance step.

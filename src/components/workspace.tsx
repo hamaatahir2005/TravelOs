@@ -29,7 +29,16 @@ import {
 import type { Prisma, Role } from '@prisma/client';
 import type { loadData } from '@/lib/data';
 import { can, type Module } from '@/lib/permissions';
-import { translations, type Language } from '@/lib/i18n';
+import {
+  translate,
+  formatMoney,
+  formatDate,
+  formatCalendar,
+  isLanguage,
+  type Language,
+  type TranslationValues,
+} from '@/lib/i18n';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from './ui/button';
 import { RecordModal } from './record-modal';
 type Serialized<T> = T extends Prisma.Decimal
@@ -39,7 +48,9 @@ type Serialized<T> = T extends Prisma.Decimal
     : T extends (infer U)[]
       ? Serialized<U>[]
       : T extends object
-        ? { [K in keyof T]: Serialized<T[K]> }
+        ? {
+            [K in keyof T]: Serialized<T[K]>;
+          }
         : T;
 export type AppData = Serialized<Awaited<ReturnType<typeof loadData>>>;
 export type Agency = {
@@ -55,8 +66,18 @@ export type Agency = {
   language: string;
   logoDocumentId: string | null;
 };
-export type Staff = { id: string; name: string; email: string; role: Role; agency: Agency };
-export type Modal = { kind: string; record?: Record<string, unknown>; detail?: boolean };
+export type Staff = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  agency: Agency;
+};
+export type Modal = {
+  kind: string;
+  record?: Record<string, unknown>;
+  detail?: boolean;
+};
 type Context = {
   staff: Staff;
   data: AppData | null;
@@ -64,7 +85,9 @@ type Context = {
   error: string;
   refresh: () => Promise<void>;
   lang: Language;
-  t: (key: string) => string;
+  t: (key: string, values?: TranslationValues) => string;
+  money: (value: unknown, currency?: string) => string;
+  dateLabel: (value: unknown) => string;
   query: string;
   setQuery: (v: string) => void;
   open: (m: Modal) => void;
@@ -90,28 +113,24 @@ export const navItems = [
   { key: 'settings', icon: Settings2 },
   { key: 'audit', icon: ShieldCheck },
 ] as const;
-export const money = (value: unknown, currency: string = 'USD') =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: currency === 'IQD' ? 0 : 2,
-  }).format(Number(value ?? 0));
-export const dateLabel = (value: unknown) =>
-  value
-    ? new Date(String(value)).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      })
-    : '—';
-export function Workspace({ staff, children }: { staff: Staff; children: ReactNode }) {
+export function Workspace({
+  staff,
+  children,
+  initialLanguage,
+}: {
+  staff: Staff;
+  children: ReactNode;
+  initialLanguage?: Language;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const current = pathname.split('/')[1] || 'dashboard';
+  const [lang, setLang] = useLanguage(
+    initialLanguage ?? (isLanguage(staff.agency.language) ? staff.agency.language : 'en'),
+  );
   const [data, setData] = useState<AppData | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
-    [lang, setLang] = useState<Language>((staff.agency.language as Language) || 'en'),
     [dark, setDark] = useState(false),
     [query, setQuery] = useState(''),
     [mobile, setMobile] = useState(false),
@@ -138,21 +157,14 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
     }
   }, [router]);
   useEffect(() => {
-    const storedLang = localStorage.getItem('travel-os-lang');
     const storedDark = localStorage.getItem('travel-os-theme') === 'dark';
     const init = setTimeout(() => {
       void refresh();
       if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js');
-      if (storedLang && ['en', 'ar', 'ckb'].includes(storedLang)) setLang(storedLang as Language);
       setDark(storedDark);
     }, 0);
     return () => clearTimeout(init);
   }, [refresh]);
-  useEffect(() => {
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
-    localStorage.setItem('travel-os-lang', lang);
-  }, [lang]);
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     localStorage.setItem('travel-os-theme', dark ? 'dark' : 'light');
@@ -163,10 +175,9 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
       return () => clearTimeout(timeout);
     }
   }, [toast]);
-  const t = (key: string) =>
-    translations[lang]?.[key] ??
-    translations.en[key] ??
-    key.replaceAll('_', ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+  const t = (key: string, values?: TranslationValues) => translate(lang, key, values);
+  const money = (value: unknown, currency = 'USD') => formatMoney(value, currency, lang);
+  const dateLabel = (value: unknown) => formatDate(value, lang);
   const reminders = [
     ...(data?.tickets ?? [])
       .filter((x) => new Date(x.departureAt) > new Date() && x.status === 'CONFIRMED')
@@ -177,15 +188,10 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
         date: x.departureAt,
       })),
     ...(data?.visas ?? [])
-      .filter(
-        (v) =>
-          v.reminderAt &&
-          new Date(v.reminderAt) > new Date() &&
-          !['APPROVED', 'REJECTED', 'CANCELLED'].includes(v.status),
-      )
+      .filter((v) => v.reminderAt && !['APPROVED', 'REJECTED', 'CANCELLED'].includes(v.status))
       .map((v) => ({
         id: v.id,
-        title: `${v.country} visa`,
+        title: `${v.country} · ${t('visas')}`,
         sub: data?.customers.find((c) => c.id === v.customerId)?.name ?? '',
         date: v.reminderAt!,
       })),
@@ -207,6 +213,8 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
         refresh,
         lang,
         t,
+        money,
+        dateLabel,
         query,
         setQuery,
         open,
@@ -217,13 +225,13 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
       <div className="app-shell">
         <button
           className={`mobile-overlay ${mobile ? 'visible' : ''}`}
-          aria-label="Close navigation"
+          aria-label={t('Close navigation')}
           onClick={() => setMobile(false)}
         />
         <aside className={`sidebar ${mobile ? 'is-open' : ''}`}>
           <button
             className="sidebar-close"
-            aria-label="Close navigation menu"
+            aria-label={t('Close navigation menu')}
             onClick={() => setMobile(false)}
           >
             <X size={18} />
@@ -241,11 +249,11 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
             <span className="agency-avatar">{staff.agency.name.slice(0, 1)}</span>
             <span>
               <strong>{staff.agency.name}</strong>
-              <small>{staff.agency.isDemo ? t('demo') : 'Agency workspace'}</small>
+              <small>{staff.agency.isDemo ? t('demo') : t('Agency workspace')}</small>
             </span>
             <ChevronDown size={15} />
           </div>
-          <nav aria-label="Main navigation">
+          <nav aria-label={t('Main navigation')}>
             <p className="nav-label">{t('workspace')}</p>
             {navItems
               .slice(0, 8)
@@ -327,12 +335,13 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
             <button
               className="mobile-menu icon-button"
               onClick={() => setMobile(true)}
-              aria-label="Open navigation"
+              aria-label={t('Open navigation')}
             >
               <Menu size={21} />
             </button>
             <div className="breadcrumb">
-              Workspace <span>/</span> <strong>{title}</strong>
+              {t('Workspace')}
+              <span>/</span> <strong>{title}</strong>
             </div>
             <div className="topbar-search">
               <Search size={16} />
@@ -358,14 +367,14 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
               <button
                 className="icon-button"
                 onClick={() => setDark(!dark)}
-                aria-label={dark ? 'Light mode' : 'Dark mode'}
+                aria-label={t(dark ? 'Light mode' : 'Dark mode')}
               >
                 {dark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <div className="popover-anchor">
                 <button
                   className="icon-button notification-button"
-                  aria-label="Reminders"
+                  aria-label={t('Reminders')}
                   onClick={() => setNotifications(!notifications)}
                 >
                   <Bell size={19} />
@@ -373,7 +382,7 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
                 </button>
                 {notifications && (
                   <div className="popover reminders-popover">
-                    <strong>{t('upcoming')}</strong>
+                    <strong>{t('Reminders')}</strong>
                     {reminders.length ? (
                       reminders.map((r) => (
                         <div key={r.id}>
@@ -381,18 +390,23 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
                             {r.title}
                             <small>{r.sub}</small>
                           </span>
-                          <small>{dateLabel(r.date)}</small>
+                          <small>
+                            {dateLabel(r.date)}
+                            {new Date(r.date).getTime() < new Date().setHours(0, 0, 0, 0) && (
+                              <span className="overdue"> · {t('Overdue')}</span>
+                            )}
+                          </small>
                         </div>
                       ))
                     ) : (
-                      <p className="subtle">No upcoming reminders.</p>
+                      <p className="subtle">{t('No upcoming reminders.')}</p>
                     )}
                   </div>
                 )}
               </div>
               <button
                 className="header-avatar"
-                aria-label="Change your password"
+                aria-label={t('Change your password')}
                 onClick={() => open({ kind: 'password' })}
               >
                 {staff.name
@@ -407,16 +421,18 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
             <div className="page-heading">
               <div>
                 <div className="page-eyebrow">
-                  <span /> {staff.agency.isDemo ? 'DEMO · FICTIONAL DATA ONLY' : 'AGENCY WORKSPACE'}
+                  <span />{' '}
+                  {t(staff.agency.isDemo ? 'DEMO · FICTIONAL DATA ONLY' : 'AGENCY WORKSPACE')}
                 </div>
                 <h1>{current === 'dashboard' ? t('overview') : title}</h1>
                 <p>{current === 'dashboard' ? t('welcome') : moduleDescription(current, lang)}</p>
               </div>
               <div className="page-heading-actions">
                 <span className="today-date">
-                  {new Date().toLocaleDateString(
-                    lang === 'en' ? 'en-GB' : lang === 'ar' ? 'ar' : 'ckb',
+                  {formatCalendar(
+                    new Date(),
                     { day: 'numeric', month: 'short', year: 'numeric' },
+                    lang,
                   )}
                 </span>
                 <div className="popover-anchor">
@@ -468,7 +484,7 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
               <div className="error-state">
                 <RefreshCw size={30} />
                 <h2>{t('error')}</h2>
-                <p>{error}</p>
+                <p>{t(error)}</p>
                 <Button onClick={refresh}>{t('retry')}</Button>
               </div>
             ) : (
@@ -476,10 +492,13 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
             )}
             <footer className="workspace-footer">
               <span>
-                <Plane size={13} /> Travel OS <span>·</span> Everything in its place.
+                <Plane size={13} /> Travel OS <span>·</span>
+                {t('Everything in its place.')}
               </span>
               <span>
-                <ShieldCheck size={13} /> Secure workspace <span className="green-dot" />
+                <ShieldCheck size={13} />
+                {t('Secure workspace')}
+                <span className="green-dot" />
               </span>
             </footer>
           </main>
@@ -488,8 +507,8 @@ export function Workspace({ staff, children }: { staff: Staff; children: ReactNo
         {toast && (
           <div role="status" className="toast">
             <ShieldCheck size={18} />
-            {toast}
-            <button aria-label="Dismiss" onClick={() => setToast('')}>
+            {t(toast)}
+            <button aria-label={t('Dismiss')} onClick={() => setToast('')}>
               <X size={15} />
             </button>
           </div>
@@ -511,9 +530,5 @@ function moduleDescription(module: string, lang: Language) {
     settings: 'Make this workspace your own.',
     audit: 'A traceable record of every important action.',
   };
-  return lang === 'en'
-    ? en[module]
-    : lang === 'ar'
-      ? 'إدارة آمنة لجميع عمليات وكالتك.'
-      : 'بەڕێوەبردنی پارێزراوی هەموو کارەکانی ئاژانسەکەت.';
+  return translate(lang, en[module] ?? '');
 }
